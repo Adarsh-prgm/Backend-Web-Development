@@ -3,13 +3,18 @@
  *
  * TODO: export a middleware function (req, res, next) that:
  *   - generates a UUID with crypto.randomUUID()
- *   - attaches it to req.id            (so later middleware/handlers can read it)
+ *   - attaches it to req.id
  *   - sets it as the "X-Request-Id" response header
- *   - calls next() so the request continues down the pipeline
+ *   - calls next()
  */
 
 const { randomUUID } = require('crypto');
 
 module.exports = function requestId(req, res, next) {
-  // TODO: implement the four steps described above.
+  const id = randomUUID();
+
+  req.id = id;
+  res.setHeader('X-Request-Id', id);
+
+  next();
 };
