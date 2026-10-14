@@ -1,21 +1,42 @@
-# Database Integration Assignment Starter
+# Database Integration
 
-Replace the in-memory repository implementation with PostgreSQL through Prisma. The starter already uses an asynchronous repository contract so services and controllers can remain stable during the swap.
+This API keeps the repository boundary as the storage interface. The post repository uses PostgreSQL through Prisma; services and controllers continue to use the same asynchronous repository methods and response shapes.
 
-## Run
+## Prerequisites
+
+- Node.js
+- PostgreSQL, with a database created for this project
+
+## First-time setup
+
+Run these commands from this directory:
 
 ```bash
 npm install
+cp .env.example .env
+```
+
+Edit `.env` with your local PostgreSQL connection details. Never commit `.env`; the committed `.env.example` contains placeholders only.
+
+Apply the committed migration, generate the Prisma Client, and seed the sample data:
+
+```bash
+npm run db:migrate
+npm run prisma:generate
+npm run db:seed
 npm start
 ```
 
-## Prisma preparation
+The seed is repeatable: it upserts the sample author and only creates a sample post if that author does not already have a post with the same title. It does not delete or reset existing data.
 
-Copy `.env.example` to `.env` with a local PostgreSQL URL. The schema is intentionally incomplete for the assignment.
+For a deployment environment, apply already-committed migrations with `npm run db:deploy`. Check migration status with `npm run db:status`.
 
-```bash
-npm run prisma:format
-npm run prisma:validate
-```
+## API
 
-Read the platform question before editing. Do not add platform-only `question.md`, answer files, tests, or specs to this repository. Never commit `.env` or real credentials.
+- `GET /posts` — list posts
+- `GET /posts/:id` — read one post
+- `POST /posts` — create a post
+- `PATCH /posts/:id` — update a post
+- `DELETE /posts/:id` — remove a post
+
+The API keeps the existing response envelopes, status codes, validation behavior, and not-found responses. Database constraint failures are translated into safe conflict messages; unexpected database failures return a generic message rather than raw database details.
