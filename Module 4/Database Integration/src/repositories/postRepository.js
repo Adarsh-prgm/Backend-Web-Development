@@ -1,117 +1,36 @@
-const prisma = require('../db/prismaClient');
+const seed = require('../data/postSeed');
 
-const postSelect = {
-  id: true,
-  title: true,
-  body: true,
-  authorId: true,
-};
-
-// Keep the public repository record shape aligned with the original
-// in-memory implementation. Prisma timestamps are storage details.
-function toPostRecord(post) {
-  return {
-    id: post.id,
-    title: post.title,
-    body: post.body,
-    authorId: post.authorId == null ? undefined : post.authorId,
-  };
-}
-
-function safeDatabaseError(error) {
-  if (error && error.code === 'P2002') {
-    const conflict = new Error('A record with those values already exists');
-    conflict.statusCode = 409;
-    return conflict;
-  }
-
-  if (error && error.code === 'P2003') {
-    const conflict = new Error('A related record does not exist or cannot be removed');
-    conflict.statusCode = 409;
-    return conflict;
-  }
-
-  const safeError = new Error('Database operation failed');
-  safeError.statusCode = 500;
-  return safeError;
-}
+// Starter implementation: same async contract, temporary in-memory storage.
+const posts = seed.map((post) => ({ ...post }));
+let nextId = posts.reduce((max, post) => Math.max(max, post.id), 0) + 1;
 
 async function findAll() {
-  try {
-    const posts = await prisma.post.findMany({
-      select: postSelect,
-      orderBy: { id: 'asc' },
-    });
-    return posts.map(toPostRecord);
-  } catch (error) {
-    throw safeDatabaseError(error);
-  }
+  return posts.map((post) => ({ ...post }));
 }
 
 async function findById(id) {
-  try {
-    const post = await prisma.post.findUnique({
-      where: { id: Number(id) },
-      select: postSelect,
-    });
-    return post ? toPostRecord(post) : null;
-  } catch (error) {
-    throw safeDatabaseError(error);
-  }
+  return posts.find((post) => post.id === Number(id)) || null;
 }
 
 async function create(fields) {
-  try {
-    const post = await prisma.post.create({
-      data: {
-        title: fields.title,
-        body: fields.body || '',
-        ...(fields.authorId === undefined ? {} : { authorId: Number(fields.authorId) }),
-      },
-      select: postSelect,
-    });
-    return toPostRecord(post);
-  } catch (error) {
-    throw safeDatabaseError(error);
-  }
+  const post = { id: nextId++, title: fields.title, body: fields.body || '', authorId: fields.authorId };
+  posts.push(post);
+  return { ...post };
 }
 
 async function update(id, patch) {
-  const postId = Number(id);
-  const data = {};
-  if (patch.title !== undefined) data.title = patch.title;
-  if (patch.body !== undefined) data.body = patch.body;
-
-  if (Object.keys(data).length === 0) {
-    return findById(postId);
-  }
-
-  try {
-    const result = await prisma.post.updateMany({
-      where: { id: postId },
-      data,
-    });
-    if (result.count === 0) return null;
-
-    const updated = await prisma.post.findUnique({
-      where: { id: postId },
-      select: postSelect,
-    });
-    return updated ? toPostRecord(updated) : null;
-  } catch (error) {
-    throw safeDatabaseError(error);
-  }
+  const post = posts.find((candidate) => candidate.id === Number(id));
+  if (!post) return null;
+  if (patch.title !== undefined) post.title = patch.title;
+  if (patch.body !== undefined) post.body = patch.body;
+  return { ...post };
 }
 
 async function remove(id) {
-  try {
-    const result = await prisma.post.deleteMany({
-      where: { id: Number(id) },
-    });
-    return result.count > 0;
-  } catch (error) {
-    throw safeDatabaseError(error);
-  }
+  const index = posts.findIndex((post) => post.id === Number(id));
+  if (index === -1) return false;
+  posts.splice(index, 1);
+  return true;
 }
 
 module.exports = { findAll, findById, create, update, remove };
