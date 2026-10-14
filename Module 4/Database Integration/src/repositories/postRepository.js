@@ -82,6 +82,10 @@ async function update(id, patch) {
   if (patch.title !== undefined) data.title = patch.title;
   if (patch.body !== undefined) data.body = patch.body;
 
+  if (Object.keys(data).length === 0) {
+    return findById(postId);
+  }
+
   try {
     const result = await prisma.post.updateMany({
       where: { id: postId },
