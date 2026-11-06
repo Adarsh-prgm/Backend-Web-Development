@@ -25,10 +25,47 @@ const { charges, idempotency, nextChargeId } = require('../store');
 
 router.post('/', (req, res) => {
   // TODO: implement rules 1-3 above. The stub below always charges — remove it.
-  const amount = req.body && req.body.amount;
-  const charge = { id: nextChargeId(), amount, status: 'charged' };
+  const idempotencyKey = req.headers['idempotency-key'];
+
+  // Rule 1: MISSING key
+  if (!idempotencyKey) {
+    return res.status(400).json({
+      error: {
+        code: 'IDEMPOTENCY_KEY_REQUIRED',
+        message: 'Idempotency key header is required for this request.',
+      },
+    });
+  }
+
+  // Rule 2: REPEAT key
+  if (idempotency.has(idempotencyKey)) {
+    const storedResponse = idempotency.get(idempotencyKey);
+    return res.status(storedResponse.status).json(storedResponse.body);
+  }
+
+  // Rule 3: NEW key
+  const chargeId = nextChargeId();
+  // const amount = req.body && req.body.amount;
+  // const charge = { id: nextChargeId(), amount, status: 'charged' };
+  const charge ={
+    id: chargeId,
+    amount: (req.body && req.body.amount) || 1000,
+    status: 'charged'
+  };
   charges.push(charge);
-  return res.status(201).json({ id: charge.id, amount: charge.amount, status: charge.status });
+  
+  const responsebody = { 
+    id: charge.id, 
+    amount: charge.amount,
+     status: charge.status 
+    };
+
+  idempotency.set(idempotencyKey, { 
+    status: 201,
+     body: responsebody,
+     });
+
+  return res.status(201).json(responsebody);
 });
 
 module.exports = router;
